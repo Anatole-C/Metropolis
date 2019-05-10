@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu May  9 14:05:22 2019
+
+@author: anatolechouard
+"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+
+'MH'
+N=10000 #nombre d'itérations
+x0=10 # point de départ
+'Gaussiennes'
+fact=5 #facteur entre la deuxième loi gaussienne et la première
+m=10 #moyenne de la grosse loi gaussienne
+gauche=-5 #gauche de la zone intéressante
+droite=15 #droite de la zone intéressante 
+'Student'
+k=100 #paramètre de Student (1 grosse variance, infini petite variance)
+poids=1 #poids de Student
+'Histogramme'
+bins=100 #nombre de rectangles dans l'histogramme : bins grand => rectangles peu larges
+
+'1. Fonction de distribution'
+#def distrib(x):
+#    return (1/(math.sqrt(2*math.pi)))*math.e**((-x**2)/2)
+
+def distrib(x):
+    return (1/(1+fact))*((1/(math.sqrt(2*math.pi)))*math.e**((-x**2)/2) + fact*(1/(math.sqrt(2*math.pi)))*math.e**((-(x-m)**2)/2))
+
+
+'2. Plot de la fct de distribution'
+X=np.linspace(gauche,droite,100)
+Y=np.asarray([distrib(x) for x in X])
+plt.plot(X,Y)
+
+plt.grid()
+plt.title('Fonction de distribution')
+plt.savefig('distribution.png',bbox_inches='tight')
+plt.show()
+plt.close()
+
+'3. Algorithme de Metropolis-Hastings'
+
+x=x0
+f=distrib(x)
+
+samples=[]
+
+for i in range(N):
+    prop=x+poids*np.random.standard_t(k) #Proposition avec loi de student de paramètre k
+    f=distrib(x)
+    f2=distrib(prop)
+    if (f>f2):
+        u=np.random.rand()
+        if u<(f2/f):
+            f=f2
+            x=prop
+    else:
+        f=f2
+        x=prop
+    samples.append(x) #éventuellement if i%s==0 append x pour enlever propriétés markov
+       
+'4. Plot de Metropolis-Hastings'
+plt.plot(X,Y)
+plt.hist(samples, 100, normed=1)
+print('histo')
+print(plt.hist(samples, 100, normed=1))
+
+plt.grid()
+plt.title('Metropolis-Hastings')
+plt.savefig('MH.png',bbox_inches='tight')
+plt.show()
+plt.close()
+
+'''
+'1. Loi de p : Student'
+#import scipy.special
+def student(x):
+    num = scipy.special.gamma((k+1)/2)*((1+((x**2)/k))**(-(k+1)/2))
+    den = scipy.special.gamma((k)/2)*math.sqrt(k*math.pi)
+    return num/den
+'''    
+
+def precision(): #évalue l'intégrale entre la fct de distrib et MH
+    e=0
+    for j in range(10):
+        estimation=0
+        out=plt.hist(samples, 100, normed=1)
+        depart=out[1][0]
+        arrivee=out[1][-1]
+        pas=out[1][1]-depart
+        
+        i=depart
+        compt=0
+        while (i<arrivee):
+            estimation+=abs(distrib(i)-out[0][compt])
+            i+=pas
+            compt+=1
+        e+=estimation
+    return (e/10)
+
+'''
+ATTENTION
+1. MODIFIER OUT DE PLACE : il est calculé une seule fois pour l'instant.
+2. Modifier l'emplacement des variables,
+afin de pouvoir faire des changements de variables plus aisément.
+3. Continuer precision()'''
+
