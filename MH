@@ -1,104 +1,352 @@
+import math
 import matplotlib.pyplot as plt
 import numpy as np
-import math
+import scipy.stats as stats
+from scipy.integrate import quad
 
 'MH'
-N=10000 #nombre d'itérations
-x0=10 # point de départ
-'Gaussiennes'
-fact=5 #facteur entre la deuxième loi gaussienne et la première
-m=10 #moyenne de la grosse loi gaussienne
-gauche=-5 #gauche de la zone intéressante
-droite=15 #droite de la zone intéressante 
+#N=10000 #nombre d'iterations
+#x0=10 # point de depart
 'Student'
-k=100 #paramètre de Student (1 grosse variance, infini petite variance)
+#k=5 #parametre de Student (1 grosse variance, infini petite variance)
 poids=1 #poids de Student
+
+'Gaussiennes'
+fact=5 #facteur entre la deuxieme loi gaussienne et la premiere
+m=10 #moyenne de la grosse loi gaussienne
+gauche=-5 #gauche de la zone interessante
+droite=15 #droite de la zone interessante 
 'Histogramme'
 bins=100 #nombre de rectangles dans l'histogramme : bins grand => rectangles peu larges
 
 '1. Fonction de distribution'
-#def distrib(x):
-#    return (1/(math.sqrt(2*math.pi)))*math.e**((-x**2)/2)
 
 def distrib(x):
     return (1/(1+fact))*((1/(math.sqrt(2*math.pi)))*math.e**((-x**2)/2) + fact*(1/(math.sqrt(2*math.pi)))*math.e**((-(x-m)**2)/2))
 
-
 '2. Plot de la fct de distribution'
-X=np.linspace(gauche,droite,100)
-Y=np.asarray([distrib(x) for x in X])
-plt.plot(X,Y)
 
-plt.grid()
-plt.title('Fonction de distribution')
-plt.savefig('distribution.png',bbox_inches='tight')
-plt.show()
-plt.close()
+def distribution():
+    X=np.linspace(gauche,droite,bins)
+    Y=np.asarray([distrib(x) for x in X])
+    plt.plot(X,Y)
+    
+    plt.grid()
+    plt.title('Fonction de distribution')
+    plt.savefig('distribution.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
 
-'3. Algorithme de Metropolis-Hastings'
+'3.1 Algorithme de Metropolis-Hastings'
 
-x=x0
-f=distrib(x)
-
-samples=[]
-
-for i in range(N):
-    prop=x+poids*np.random.standard_t(k) #Proposition avec loi de student de paramètre k
+def MH(N,k,x0): #renvoie un tableau des abscisses x des points acceptes par Metropolis-Hastings
+    x=x0
     f=distrib(x)
-    f2=distrib(prop)
-    if (f>f2):
-        u=np.random.rand()
-        if u<(f2/f):
+
+    samples=[x0]
+    for i in range(N-1):
+        prop=x+poids*np.random.standard_t(k) #Proposition avec loi de student de parametre k
+        f=distrib(x)
+        f2=distrib(prop)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                x=prop
+        else:
             f=f2
             x=prop
-    else:
-        f=f2
-        x=prop
-    samples.append(x) #éventuellement if i%s==0 append x pour enlever propriétés markov
-       
-'4. Plot de Metropolis-Hastings'
-plt.plot(X,Y)
-plt.hist(samples, 100, normed=1)
-print('histo')
-print(plt.hist(samples, 100, normed=1))
+        samples.append(x) #eventuellement if i%s==0 append x pour enlever proprietes markov
+    return samples
 
-plt.grid()
-plt.title('Metropolis-Hastings')
-plt.savefig('MH.png',bbox_inches='tight')
-plt.show()
-plt.close()
+'3.2 MH2 : renvoie un tableau de tableaux de toutes les coord de x0, ..., xN'
 
+def MH2(N,k,x0,nb): #renvoie un tableau des abscisses x des points acceptes par Metropolis-Hastings
+    T=[]
+    for i in range(nb):
+        print(i)
+        T+=[MH(N,k,x0)]
+    TABLEAU=np.transpose(T)
+#    print(TABLEAU[N-1])
+#    print(TABLEAU[-1])
+#    print(TABLEAU[N-1] == TABLEAU[-1])
+    return TABLEAU
+
+'''TABLEAU : taille N*nb
+
+    TABLEAU[0] represente les nb x0
+    TABLEAU[1] represente les nb x1
+    ...
+    TABLEAU[-1] represente les nb xN-1
+
+    TABLEAU [0][nb-1] represente le x0 du nb-ieme MH
 '''
-'1. Loi de p : Student'
-#import scipy.special
-def student(x):
-    num = scipy.special.gamma((k+1)/2)*((1+((x**2)/k))**(-(k+1)/2))
-    den = scipy.special.gamma((k)/2)*math.sqrt(k*math.pi)
-    return num/den
-'''    
 
-def precision(): #évalue l'intégrale entre la fct de distrib et MH
+'0. Test kernel estimator'
+
+def kernel():
+    n = 10 #nb de points pour deviner la distribution
+    xn = np.random.randn(n)
+    xn2 = np.random.randn(n)
+
+    gkde=stats.gaussian_kde(xn) #nature de l'estimateur : gaussian kernel density estimator
+    gkde2=stats.gaussian_kde(xn2) #nature de l'estimateur : gaussian kernel density estimator
+    
+    def gkde_to_function(x):
+        return gkde.evaluate(x)[0]
+    def gkde2_to_function(x):
+        return gkde2.evaluate(x)[0]
+    def gkde3_to_function(x):
+        return abs(gkde_to_function(x)-gkde2_to_function(x))
+    
+    X = np.linspace(gauche,droite,100) #espace sur lequel il estime
+    kdepdf = gkde.evaluate(X) #estime ici
+    kdepdf2 = gkde2.evaluate(X)
+    kdepdf3=abs(kdepdf - kdepdf2)
+    
+    plt.figure()
+    plt.plot(X, kdepdf, label='kde', color="g")
+    plt.plot(X, kdepdf2, label='kde2')
+    plt.plot(X, kdepdf3, label='kde3')
+#    Y=np.asarray([gkde3_to_function(x) for x in X])
+#    plt.plot(X,Y, label = 'difference')
+    
+    plt.title('Kernel Density Estimation')
+    plt.legend()
+    plt.show()
+    
+    I1=quad(gkde_to_function, gauche, droite)
+    I2=quad(gkde2_to_function, gauche, droite)
+    I3=quad(gkde3_to_function, gauche, droite)
+    return (I1,I2,I3)
+
+'4.2 Erreur integrale du estimator en norme TV'
+
+def erreur(N,k,x0,nb):
+    TABLEAU=MH2(N,k,x0,nb) #points pour estimer la distribution
+    gkde=stats.gaussian_kde(TABLEAU[-1])#nature de l'estimateur : gaussian kernel density estimator
+    print(TABLEAU[-1])  
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-distrib(x))
+    I = quad(difference, gauche, droite)
+    return I[0]
+
+'4.3 Plot du gaussian estimator de MH'
+
+def plot_estimator(N,k,x0,nb):
+    X=np.linspace(gauche,droite,bins) #espace sur lequel on estime
+    
+    TABLEAU=MH2(N,k,x0,nb) #points pour estimer la distribution
+    gkde=stats.gaussian_kde(TABLEAU[-1])#nature de l'estimateur : gaussian kernel density estimator
+    kdepdf = gkde.evaluate(X) #estime ici sur l'espace X
+    
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-distrib(x))
+    
+#    plt.figure()
+    Y=np.asarray([distrib(x) for x in X]) #distribution de base
+    Z=np.asarray([difference(x) for x in X]) #difference
+    
+    plt.plot(X,Y, label='distribution', color="b") #plot distribution de base
+    plt.plot(X, kdepdf, label='kde', color="g") #plot estimateur
+
+    plt.plot(X,Z, label='difference') #plot difference
+#    plt.plot(X, abs(kdepdf-Y), label='courbe que devrait etre difference') #plot la vraie difference
+    
+    plt.grid()
+    plt.title('Kernel Density Estimation')
+    plt.legend()
+    plt.show()
+
+
+'5. Precision de Metropolis-Hastings'
+
+def precision(N,k,x0,nb): #evalue l'integrale entre la fct de distrib et MH, nb : nb de repetitions
     e=0
-    for j in range(10):
+#    X=np.linspace(gauche,droite,bins)
+#    Y=np.asarray([distrib(x) for x in X])
+#    plt.plot(X,Y)
+    for j in range(nb):
         estimation=0
-        out=plt.hist(samples, 100, normed=1)
-        depart=out[1][0]
-        arrivee=out[1][-1]
-        pas=out[1][1]-depart
-        
+        samples=MH(N,k,x0)
+#        out=plt.hist(samples, bins, normed=1) #plt : dessine l'histogramme
+        out=np.histogram(samples, bins, normed=1) #np : calcule mais NE DESSINE PAS l'histogramme
+        depart=out[1][0] #abscisse de depart
+        arrivee=out[1][-2] #abscisse d'arrivee
+        pas=out[1][1]-depart        
         i=depart
         compt=0
-        while (i<arrivee):
-            estimation+=abs(distrib(i)-out[0][compt])
+        while (i<=arrivee):
+            estimation+=abs(distrib(i)-out[0][compt])*pas
             i+=pas
             compt+=1
         e+=estimation
-    return (e/10)
+    return (e/nb)
 
-'''
-ATTENTION
-1. MODIFIER OUT DE PLACE : il est calculé une seule fois pour l'instant.
-2. Modifier l'emplacement des variables,
-afin de pouvoir faire des changements de variables plus aisément.
-3. Continuer precision()'''
+def precision2(N,k,x0,nb): #evalue l'integrale entre la fct de distrib et MH, nb : nb de repetitions
+    e=0
+#    X=np.linspace(gauche,droite,bins)
+#    Y=np.asarray([distrib(x) for x in X])
+#    plt.plot(X,Y)
+    for j in range(nb):
+        estimation=0
+        TABLEAU=MH2(N,k,x0,nb)
+#        out=plt.hist(TABLEAU[-1], bins, normed=1) #plt : dessine l'histogramme
+        out=np.histogram(TABLEAU[-1], bins, normed=1) #np : calcule mais NE DESSINE PAS l'histogramme
+        depart=out[1][0] #abscisse de depart
+        arrivee=out[1][-2] #abscisse d'arrivee
+        pas=out[1][1]-depart        
+        i=depart
+        compt=0
+        while (i<=arrivee):
+            estimation+=abs(distrib(i)-out[0][compt])*pas
+            i+=pas
+            compt+=1
+        e+=estimation
+    return (e/nb)
 
+    
+'5.2 Erreur de Metropolis-Hastings'
+
+
+'6. Graphe : Precision en fonction de k, N fixe'
+
+#def graphePrecision(N,x0,nb,n): #precision en fonction de k pour N grand N=100000
+#    tabK=[k for k in range(1,20)] #parametre de Student en abscisse
+#    tabPrecision=[] # Precision en ordonnee
+#    for k in range(1,20):
+#        print(k)
+#        tabPrecision+=[precision(N,k,x0,nb)]
+#    plt.figure()
+#    plt.plot(tabK,tabPrecision)
+#    plt.grid()
+#    plt.title('Graphe Precision')
+#    plt.savefig('graphe_precision.png',bbox_inches='tight')
+#    plt.show()
+#    plt.close()
+#    return tabPrecision
+
+
+def graphePrecision(N,x0,nb,nbk,kf,kl): #precision en fonction de k
+#N : nb d'iterations
+#x0 : point de depart de MH
+#nb : nb de repetitions de MH
+#nbk : nb de k differents que l'on teste sur le graphe
+#kf : k first : premier k que l'on teste
+#kl : k last : dernier k que l'on teste
+    
+    tabK=[] #parametre de Student en abscisse
+    tabPrecision=[] # Precision en ordonnee
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        tabPrecision+=[precision(N,k,x0,nb)]
+    plt.figure()
+    plt.plot(tabK,tabPrecision)
+    plt.grid()
+    plt.title('Graphe Precision')
+    plt.savefig('graphe_precision.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabPrecision
+
+def graphePrecision2(N,x0,nb,nbk,kf,kl): #precision en fonction de k
+#N : nb d'iterations
+#x0 : point de depart de MH
+#nb : nb de repetitions de MH
+#nbk : nb de k differents que l'on teste sur le graphe
+#kf : k first : premier k que l'on teste
+#kl : k last : dernier k que l'on teste
+    
+    tabK=[] #parametre de Student en abscisse
+    tabPrecision=[] # Precision en ordonnee
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        tabPrecision+=[precision2(N,k,x0,nb)]
+    plt.figure()
+    plt.plot(tabK,tabPrecision)
+    plt.grid()
+    plt.title('Graphe Precision')
+    plt.savefig('graphe_precision.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabPrecision
+
+'7. Graphe : N en fonction de k, precision fixee : on cherche pout tout k le N tel que precision<eps'
+#on raisonne par dichotomie pour trouver N
+def grapheNk(x0,nb,nbk,kf,kl,eps):
+    tabK=[] #parametre de Student en abscisse
+    tabN=[] # N en ordonnee
+    tabP=[]
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        c1=0 #compteur 1
+        c2=0 #compteur 2
+        N=1000 #N de depart
+        Nfinal=N
+        p=precision(N,k,x0,nb)
+        pfinal=p
+        while (c1<20):
+            if (p>eps):
+                N=math.floor(N*(10-(c1/2)))
+            else:
+                pfinal=p
+                Nfinal=N
+                c2+=1
+                N=math.floor(N/(6-(c2/4)))
+            p=precision(N,k,x0,nb)
+            c1+=1
+        tabP+=[pfinal]
+        tabN+=[Nfinal]
+    plt.figure()
+    plt.plot(tabK,tabN)
+    plt.grid()
+    plt.title('Graphe N en fonction de k')
+    plt.savefig('graphe_Nk.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabP
+
+'8. Variation de 7'
+def grapheNk2(x0,nb,nbk,kf,kl,eps): #nb jamais plus grand que 10000 : 1000 tres bien
+    tabK=[] #parametre de Student en abscisse
+    tabN=[] # N en ordonnee
+    tabP=[]
+    TABLEAU=MH2(1000,k,x0,nb) #on prend N=1000 comme max
+    
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        
+        c1=0 #compteur 1
+        c2=0 #compteur 2
+        N=10 #N de depart
+        Nfinal=N
+        p=precision2(N,k,x0,nb)
+        pfinal=p
+        while (c1<20):
+            if (p>eps):
+                N=math.floor(N*(10-(c1/2)))
+            else:
+                pfinal=p
+                Nfinal=N
+                c2+=1
+                N=math.floor(N/(6-(c2/4)))
+            p=precision2(N,k,x0,nb)
+            c1+=1
+        tabP+=[pfinal]
+        tabN+=[Nfinal]
+    plt.figure()
+    plt.plot(tabK,tabN)
+    plt.grid()
+    plt.title('Graphe N en fonction de k')
+    plt.savefig('graphe_Nk.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabP
