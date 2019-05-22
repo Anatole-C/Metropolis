@@ -67,9 +67,6 @@ def MH2(N,k,x0,nb): #renvoie un tableau des abscisses x des points acceptes par 
         print(i)
         T+=[MH(N,k,x0)]
     TABLEAU=np.transpose(T)
-#    print(TABLEAU[N-1])
-#    print(TABLEAU[-1])
-#    print(TABLEAU[N-1] == TABLEAU[-1])
     return TABLEAU
 
 '''TABLEAU : taille N*nb
@@ -82,45 +79,7 @@ def MH2(N,k,x0,nb): #renvoie un tableau des abscisses x des points acceptes par 
     TABLEAU [0][nb-1] represente le x0 du nb-ieme MH
 '''
 
-'0. Test kernel estimator'
-
-def kernel():
-    n = 10 #nb de points pour deviner la distribution
-    xn = np.random.randn(n)
-    xn2 = np.random.randn(n)
-
-    gkde=stats.gaussian_kde(xn) #nature de l'estimateur : gaussian kernel density estimator
-    gkde2=stats.gaussian_kde(xn2) #nature de l'estimateur : gaussian kernel density estimator
-    
-    def gkde_to_function(x):
-        return gkde.evaluate(x)[0]
-    def gkde2_to_function(x):
-        return gkde2.evaluate(x)[0]
-    def gkde3_to_function(x):
-        return abs(gkde_to_function(x)-gkde2_to_function(x))
-    
-    X = np.linspace(gauche,droite,100) #espace sur lequel il estime
-    kdepdf = gkde.evaluate(X) #estime ici
-    kdepdf2 = gkde2.evaluate(X)
-    kdepdf3=abs(kdepdf - kdepdf2)
-    
-    plt.figure()
-    plt.plot(X, kdepdf, label='kde', color="g")
-    plt.plot(X, kdepdf2, label='kde2')
-    plt.plot(X, kdepdf3, label='kde3')
-#    Y=np.asarray([gkde3_to_function(x) for x in X])
-#    plt.plot(X,Y, label = 'difference')
-    
-    plt.title('Kernel Density Estimation')
-    plt.legend()
-    plt.show()
-    
-    I1=quad(gkde_to_function, gauche, droite)
-    I2=quad(gkde2_to_function, gauche, droite)
-    I3=quad(gkde3_to_function, gauche, droite)
-    return (I1,I2,I3)
-
-'4.2 Erreur integrale du estimator en norme TV'
+'4. Erreur integrale du estimator en norme TV'
 
 def erreur(N,k,x0,nb):
     TABLEAU=MH2(N,k,x0,nb) #points pour estimer la distribution
@@ -131,7 +90,16 @@ def erreur(N,k,x0,nb):
     I = quad(difference, gauche, droite)
     return I[0]
 
-'4.3 Plot du gaussian estimator de MH'
+
+def erreur2(tab):
+    gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
+    print(tab)  
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-distrib(x))
+    I = quad(difference, gauche, droite)
+    return I[0]   
+
+'4.2 Plot integrale de estimator' #Pour verifier que erreur est bien calculee
 
 def plot_estimator(N,k,x0,nb):
     X=np.linspace(gauche,droite,bins) #espace sur lequel on estime
@@ -159,7 +127,7 @@ def plot_estimator(N,k,x0,nb):
     plt.show()
 
 
-'5. Precision de Metropolis-Hastings'
+'5. Precision de Metropolis-Hastings avec histogrammes'
 
 def precision(N,k,x0,nb): #evalue l'integrale entre la fct de distrib et MH, nb : nb de repetitions
     e=0
@@ -205,27 +173,7 @@ def precision2(N,k,x0,nb): #evalue l'integrale entre la fct de distrib et MH, nb
         e+=estimation
     return (e/nb)
 
-    
-'5.2 Erreur de Metropolis-Hastings'
-
-
-'6. Graphe : Precision en fonction de k, N fixe'
-
-#def graphePrecision(N,x0,nb,n): #precision en fonction de k pour N grand N=100000
-#    tabK=[k for k in range(1,20)] #parametre de Student en abscisse
-#    tabPrecision=[] # Precision en ordonnee
-#    for k in range(1,20):
-#        print(k)
-#        tabPrecision+=[precision(N,k,x0,nb)]
-#    plt.figure()
-#    plt.plot(tabK,tabPrecision)
-#    plt.grid()
-#    plt.title('Graphe Precision')
-#    plt.savefig('graphe_precision.png',bbox_inches='tight')
-#    plt.show()
-#    plt.close()
-#    return tabPrecision
-
+'6.1 Graphe : Precision en fonction de k, N fixe AVEC HISTOGRAMMES'
 
 def graphePrecision(N,x0,nb,nbk,kf,kl): #precision en fonction de k
 #N : nb d'iterations
@@ -275,7 +223,35 @@ def graphePrecision2(N,x0,nb,nbk,kf,kl): #precision en fonction de k
     plt.close()
     return tabPrecision
 
-'7. Graphe : N en fonction de k, precision fixee : on cherche pout tout k le N tel que precision<eps'
+'6.2 Graphe : Erreur en fonction de k, N fixe AVEC GKDE'
+
+def graphe_erreur(N,x0,nb,nbk,kf,kl): #precision en fonction de k
+#N : nb d'iterations
+#x0 : point de depart de MH
+#nb : nb de repetitions de MH
+#nbk : nb de k differents que l'on teste sur le graphe
+#kf : k first : premier k que l'on teste
+#kl : k last : dernier k que l'on teste
+    
+    tabK=[] #parametre de Student en abscisse
+    tabErreur=[] # Precision en ordonnee
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        TABLEAU=MH2(N,k,x0,nb)
+        tabErreur+=[erreur2(TABLEAU[-1])]
+    plt.figure()
+    plt.plot(tabK,tabErreur)
+    plt.grid()
+    plt.title('Graphe : erreur en fonction de k, N={}, nb={}'.format(N,nb))
+    plt.savefig('graphe_erreur.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabErreur
+
+
+'7.1 Graphe : N en fonction de k, precision fixee : on cherche pout tout k le N tel que precision<eps'
 #on raisonne par dichotomie pour trouver N
 def grapheNk(x0,nb,nbk,kf,kl,eps):
     tabK=[] #parametre de Student en abscisse
@@ -312,35 +288,43 @@ def grapheNk(x0,nb,nbk,kf,kl,eps):
     plt.close()
     return tabP
 
-'8. Variation de 7'
-def grapheNk2(x0,nb,nbk,kf,kl,eps): #nb jamais plus grand que 10000 : 1000 tres bien
+'7.2 Graphe7.1 AVEC GKDE et AVEC OPTIMISATION TEMPS : un seul MH'
+
+def grapheNk2(x0,nb,nbk,kf,kl,eps):
     tabK=[] #parametre de Student en abscisse
     tabN=[] # N en ordonnee
-    tabP=[]
-    TABLEAU=MH2(1000,k,x0,nb) #on prend N=1000 comme max
+    tabE=[]
     
     for j in range(nbk):
         k=kf+((kl-kf)/nbk)*j
         print(k)
         tabK+=[k]
         
-        c1=0 #compteur 1
-        c2=0 #compteur 2
-        N=10 #N de depart
+        c1=0
+        c2=0
+        N=1000
         Nfinal=N
-        p=precision2(N,k,x0,nb)
-        pfinal=p
+        TABLEAU=MH2(1000,k,x0,nb)
+        tab=TABLEAU[-1]
+        e=erreur2(tab)
+        efinal=e
+        
         while (c1<20):
-            if (p>eps):
-                N=math.floor(N*(10-(c1/2)))
+            if (e>eps):
+                N=min(1000,math.floor(N*(2-(c1/20))))
+                tab=TABLEAU[N-1]
             else:
-                pfinal=p
+                efinal=e
                 Nfinal=N
                 c2+=1
-                N=math.floor(N/(6-(c2/4)))
-            p=precision2(N,k,x0,nb)
+                print(c2)
+                N=max(1,math.floor(N/(1.5-c2/40)))
+                tab=TABLEAU[N-1]
+                
+            e=erreur2(tab)
             c1+=1
-        tabP+=[pfinal]
+            print(c1)
+        tabE+=[efinal]
         tabN+=[Nfinal]
     plt.figure()
     plt.plot(tabK,tabN)
@@ -349,4 +333,5 @@ def grapheNk2(x0,nb,nbk,kf,kl,eps): #nb jamais plus grand que 10000 : 1000 tres 
     plt.savefig('graphe_Nk.png',bbox_inches='tight')
     plt.show()
     plt.close()
-    return tabP
+    return tabE
+
