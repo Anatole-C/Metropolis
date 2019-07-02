@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jun 29 16:07:09 2019
+
+@author: anatolechouard
+"""
+
+from mpl_toolkits import mplot3d
+
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
+from scipy.integrate import quad
+import time
+
+fact=10
+poids=1 #poids de Student
+
+'1. Fonction de distribution'
+
+def distrib_3D(x,y):
+    return (1/(1+2*fact))*(fact*(1/2*np.pi)*math.e**(((-((x-0)**2))/2)-(((y-0)**2)/2))+fact*(1/2*np.pi)*math.e**(((-((x-10)**2))/2)-(((y-0)**2)/2))+(1/2*np.pi)*math.e**(((-((x-0)**2))/2)-(((y-10)**2)/2)))
+
+def distrib_3D_2(y,x): #pour pouvoir integrer selon x ou y facilement ensuite (astuce)
+    return distrib_3D(x,y)
+
+'2. Plot de la fct de distribution'
+
+def plot_distribution_3D():
+    x=np.linspace(-5,15,50)
+    y=np.linspace(-5,15,50)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    Z=distrib_3D(X,Y)
+    
+    fig = plt.figure(figsize=(13,7))
+    ax = plt.axes(projection='3d')
+    
+    ax.contour3D(X, Y, Z, 50, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='viridis', edgecolor='none')
+    ax.set_title('distribution 3D')
+    
+    ax.view_init(45, 300)
+    plt.show(fig)
+
+'3.1 Algorithme de Metropolis-Hastings classique'
+
+def MH_3D(N,k,x0,y0): #renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+    
+    x=x0 #x de depart
+    y=y0 #y de depart
+    samples=[[x0],[y0]]
+        
+    f=distrib_3D(x,y)
+    
+    for i in range(N-1):
+        
+        #MH pour x
+        prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_3D(x,y)
+        f2=distrib_3D(prop_x,y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                x=prop_x
+        else:
+            f=f2
+            x=prop_x
+            
+        #MH pour y
+        prop_y=y+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_3D(x,y)
+        f2=distrib_3D(x,prop_y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                y=prop_y
+        else:
+            f=f2
+            y=prop_y
+        samples[0]+=[x+(i+1)*10**(-15)]
+        samples[1]+=[y+(i+1)*10**(-15)]
+    return samples
+
+def MH2_3D(N,k,x0,y0,nb): #donne les nb coordonnes (x,y) des points numeros N-1
+    start = time.time()   
+    T=[[],[]]  
+    for i in range(nb):
+        print(i)
+        TABLEAU=MH_3D(N,k,x0,y0)
+        T[0]+=[TABLEAU[0][-1]]
+        T[1]+=[TABLEAU[1][-1]]  
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    return T
+
+'''
+[PLUS MAINTENANT]
+T[0] donne le tableau de coordonnees de la premiere repetition
+T[0][0] donne les coordonnees [x0,y0] de la premiere repetition
+T[0][0][0] donne x0 de la premiere repetition
+...
+T[nb-1] donne le tableau de coordonnees de la derniere repetition
+'''
+
+'3.2 Algorithme de Metropolis-Hastings LOCALLY INFORMED : MH_LI'
+
+def MH_LI_3D(N,k,x0,y0):#renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+#    start = time.time()
+    
+    #    N=2*N #multiplier N par 2 pour avoir le meme N nombre de propositions que MH normal
+    x=x0 #x de depart
+    y=y0 #y de depart
+    samples=[[x0],[y0]]
+        
+    f=distrib_3D(x,y)
+    
+    for i in range(N-1):
+        #rapport des integrales :
+        
+        #integrale selon x, y fixe
+        int1=quad(distrib_3D,-np.inf,np.inf,args=(y,))[0]
+        
+        #integrale selon y, x fixe
+        int2=quad(distrib_3D_2,-np.inf,np.inf,args=(x,))[0]
+        
+        rap_int=int1/(int1+int2)
+        
+        rand=np.random.rand()
+        if (rap_int>rand): #on modifie alors x
+        
+            #MH pour x
+            prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+            f=distrib_3D(x,y)
+            f2=distrib_3D(prop_x,y)
+            if (f>f2):
+                u=np.random.rand()
+                if u<(f2/f):
+                    f=f2
+                    x=prop_x
+            else:
+                f=f2
+                x=prop_x
+                
+        else :
+            
+            #MH pour y
+            prop_y=y+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+            f=distrib_3D(x,y)
+            f2=distrib_3D(x,prop_y)
+            if (f>f2):
+                u=np.random.rand()
+                if u<(f2/f):
+                    f=f2
+                    y=prop_y
+            else:
+                f=f2
+                y=prop_y
+        samples[0]+=[x+(i+1)*10**(-15)]
+        samples[1]+=[y+(i+1)*10**(-15)]
+#    end = time.time()
+#    print('execution time :')
+#    print(end - start)
+    return samples
+
+def MH2_LI_3D(N,k,x0,y0,nb): #donne les nb coordonnes (x,y) des points numeros N-1
+    start = time.time()    
+    T=[[],[]]   
+    for i in range(nb):
+        print(i)
+        TABLEAU=MH_LI_3D(N,k,x0,y0)
+        T[0]+=[TABLEAU[0][-1]]
+        T[1]+=[TABLEAU[1][-1]]  
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    return T
+
+'4. Erreur integrale du estimator en norme TV : kde'
+
+'4.1 : kde de MH classique'
+
+def kde_MH_3D(N,k,x0,y0,nb,prec): #prec=100 : precision en x et en y, ie maillage fin ou non
+    start = time.time()
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])
+    
+    values = MH2_3D(N,k,x0,y0,nb)
+    print(values)
+    kernel = stats.gaussian_kde(values)
+    Z = np.reshape(kernel(positions).T, X.shape)
+    
+    fig = plt.figure(figsize=(13,7))
+    ax = plt.axes(projection='3d') 
+    ax.contour3D(X, Y, Z, 50, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    surface = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('Surface de la KDE 2D')
+    fig.colorbar(surface, shrink=0.5, aspect=5)  
+    ax.view_init(45, 300)
+    
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    
+    plt.show(fig)
+
+'4.2 kde de MH LI'
+
+def kde_MH_LI_3D(N,k,x0,y0,nb,prec): #prec=100 : precision en x et en y, ie maillage fin ou non
+    start = time.time()
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])
+
+    values = MH2_LI_3D(N,k,x0,y0,nb)
+    kernel = stats.gaussian_kde(values)
+    Z = np.reshape(kernel(positions).T, X.shape)
+    
+    fig = plt.figure(figsize=(13,7))
+    ax = plt.axes(projection='3d')
+    ax.contour3D(X, Y, Z, 50, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    surface = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('Surface de la KDE 2D')
+    fig.colorbar(surface, shrink=0.5, aspect=5)
+    ax.view_init(45, 300)
+    
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    
+    plt.show(fig)
+
+'5. Plot et calcul : integrale de estimator, ie la difference entre la distribution et le kde'
+
+
+#def erreur(N,k,x0,nb):
+#    TABLEAU=MH2(N,k,x0,nb) #points pour estimer la distribution
+#    gkde=stats.gaussian_kde(TABLEAU[-1])#nature de l'estimateur : gaussian kernel density estimator
+#    print(TABLEAU[-1])  
+#    def difference(x):
+#        return abs(gkde.evaluate(x)[0]-distrib(x))
+#    I = quad(difference, gauche, droite)
+#    return I[0]
+#
+#
+#def erreur2(tab):
+#    gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
+#    print(tab)  
+#    def difference(x):
+#        return abs(gkde.evaluate(x)[0]-distrib(x))
+#    I = quad(difference, gauche, droite)
+#    return I[0]   
+
+def erreur_3D(N,k,x0,y0):
+    return 0
+
+
+'''[A FAIRE]
+- MH_3D : commencer avec un point (x0, y0) ou sous pi invariant ?
+- MH_LI_3D : multiplier N par 2 ?
+- modifier MH_3D, MH2_LI_3D MH_LI_3D et MH2_LI_3D pour que
+tous les tableaux de sortie soient comme pour MH_LI_3D_test et que kde_li marche bien
+- 3.2 : Remarque : pour ne pas avoir plusieurs fois le meme point (sinon bug kde),
+j'ai ajouté à chaque point (i+1)*10**(-15) dans MH_LI_3D(N,k,x0,y0)
+- 4.1 et 4.2 peut etre a combiner en une seule fonction qui prend en entree une fonction,
+  idem pour MH2_3D et MH2_LI_3D
+- ATTENTION !!! J'ai fait la meme erreur que la derniere fois : 
+  j'ai pris les points en horizontal et pas en vertical : ajouter nb aux fonctions !!
+'''
