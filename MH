@@ -1,3 +1,11 @@
+s#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue May 21 15:01:58 2019
+
+@author: anatolechouard
+"""
+
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,6 +26,63 @@ gauche=-5 #gauche de la zone interessante
 droite=15 #droite de la zone interessante 
 'Histogramme'
 bins=100 #nombre de rectangles dans l'histogramme : bins grand => rectangles peu larges
+
+'0. Test kernel estimator'
+
+def kernel(n):
+    xn=[]
+    for i in range(n):
+        xn+=[x0_invariant()]
+    print(xn)
+#    xn2 = np.random.randn(n)
+
+    gkde=stats.gaussian_kde(xn) #nature de l'estimateur : gaussian kernel density estimator
+#    gkde2=stats.gaussian_kde(xn2) #nature de l'estimateur : gaussian kernel density estimator
+#    print('gkde.evaluate')
+#    print(gkde.evaluate(0))
+    def gkde_to_function(x):
+        return gkde.evaluate(x)[0]
+#    def gkde2_to_function(x):
+#        return gkde2.evaluate(x)[0]
+    def gkde3_to_function(x):
+#        return abs(gkde_to_function(x)-gkde2_to_function(x))
+        return abs(gkde_to_function(x)-distrib(x))
+#        
+#    X = np.linspace(-5,5,100) #espace sur lequel il estime
+#    kdepdf = gkde.evaluate(X) #estime ici
+##    kdepdf2 = gkde2.evaluate(X)
+#    kdepdf3=abs(kdepdf - kdepdf2)
+#    
+#    
+##    plt.figure()
+##    out1=plt.hist(xn, bins, normed=1) #plt : dessine l'histogramme
+##    out2=plt.hist(xn2, bins, normed=1) #plt : dessine l'histogramme
+##    out2=np.histogram(abs(xn2-xn), bins, normed=1) #np : calcule mais NE DESSINE PAS l'histogramme
+#    plt.plot(X, kdepdf, label='kde', color="g")
+#    plt.plot(X, kdepdf2, label='kde2')
+#    plt.plot(X, kdepdf3, label='kde3')
+##    Y=np.asarray([gkde3_to_function(x) for x in X])
+##    plt.plot(X,Y, label = 'difference')
+#    
+#    plt.title('Kernel Density Estimation')
+#    plt.legend()
+#    plt.show()
+#    
+#    I1=quad(gkde_to_function, gauche, droite)
+#    I2=quad(gkde2_to_function, gauche, droite)
+    I3=quad(gkde3_to_function, gauche, droite)
+    return I3
+
+
+
+
+def plot(tab):
+    gkde=stats.gaussian_kde(tab) #nature de l'estimateur : gaussian kernel density estimator
+    X = np.linspace(-10,10,100) #espace sur lequel il estime
+    kdepdf = gkde.evaluate(X) #estime ici
+    plt.plot(X, kdepdf, label='kde', color="g")
+    
+       
 
 '1. Fonction de distribution'
 
@@ -79,6 +144,14 @@ def MH2(N,k,x0,nb): #renvoie un tableau des abscisses x des points acceptes par 
     TABLEAU [0][nb-1] represente le x0 du nb-ieme MH
 '''
 
+def MH2_invariant(N,k,nb): #commence sous pi invariante
+    T=[]
+    for i in range(nb):
+        print(i)
+        T+=[MH(N,k,x0_invariant())]
+    TABLEAU=np.transpose(T)
+    return TABLEAU
+
 '4. Erreur integrale du estimator en norme TV'
 
 def erreur(N,k,x0,nb):
@@ -116,15 +189,36 @@ def plot_estimator(N,k,x0,nb):
     Z=np.asarray([difference(x) for x in X]) #difference
     
     plt.plot(X,Y, label='distribution', color="b") #plot distribution de base
-    plt.plot(X, kdepdf, label='kde', color="g") #plot estimateur
+    plt.plot(X, kdepdf, '--', label='kde') #plot estimateur
 
-    plt.plot(X,Z, label='difference') #plot difference
+    plt.plot(X,Z, '-.', label='difference') #plot difference
 #    plt.plot(X, abs(kdepdf-Y), label='courbe que devrait etre difference') #plot la vraie difference
     
     plt.grid()
     plt.title('Kernel Density Estimation')
     plt.legend()
     plt.show()
+    
+def plot_estimator2(tab): #idem plot_estimator mais a faire avec TABLEAU(N,k,x0,nb)[-1]
+    X=np.linspace(gauche,droite,bins) #espace sur lequel on estime
+    gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
+    kdepdf = gkde.evaluate(X) #estime ici sur l'espace X
+    
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-distrib(x))
+    
+    plt.figure()
+    Y=np.asarray([distrib(x) for x in X]) #distribution de base
+    Z=np.asarray([difference(x) for x in X]) #difference
+    
+    plt.plot(X,Y, label='distribution', color="b") #plot distribution de base
+    plt.plot(X, kdepdf, '--', label='kde') #plot estimateur
+    plt.plot(X,Z, '-.', label='difference') #plot difference
+    
+    plt.grid()
+    plt.title('Kernel Density Estimation')
+    plt.legend()
+#    plt.show()
 
 
 '5. Precision de Metropolis-Hastings avec histogrammes'
@@ -225,7 +319,7 @@ def graphePrecision2(N,x0,nb,nbk,kf,kl): #precision en fonction de k
 
 '6.2 Graphe : Erreur en fonction de k, N fixe AVEC GKDE'
 
-def graphe_erreur(N,x0,nb,nbk,kf,kl): #precision en fonction de k
+def graphe_erreur(N,x0,nb,nbk,kf,kl): #erreur en fonction de k
 #N : nb d'iterations
 #x0 : point de depart de MH
 #nb : nb de repetitions de MH
@@ -241,6 +335,7 @@ def graphe_erreur(N,x0,nb,nbk,kf,kl): #precision en fonction de k
         tabK+=[k]
         TABLEAU=MH2(N,k,x0,nb)
         tabErreur+=[erreur2(TABLEAU[-1])]
+        plot_estimator2(TABLEAU[-1])
     plt.figure()
     plt.plot(tabK,tabErreur)
     plt.grid()
@@ -324,6 +419,7 @@ def grapheNk2(x0,nb,nbk,kf,kl,eps):
             e=erreur2(tab)
             c1+=1
             print(c1)
+        plot_estimator2(tab)
         tabE+=[efinal]
         tabN+=[Nfinal]
     plt.figure()
@@ -335,3 +431,127 @@ def grapheNk2(x0,nb,nbk,kf,kl,eps):
     plt.close()
     return tabE
 
+'8. Graphe : erreur en fonction de N, k fixe' #tres lent
+
+def graphe_erreur_N(k,x0,nb,nbN,Nf,Nl):
+    tabN=[] # N en abscisse
+    tabErreur=[] # erreur en ordonnee
+    
+    for j in range(nbN):
+        N=int(Nf+((Nl-Nf)/nbN)*j)
+        print(N)
+        tabN+=[N]
+        print(tabN)
+        TABLEAU=MH2(N,k,x0,nb)
+        tabErreur+=[erreur2(TABLEAU[-1])]
+        plot_estimator2(TABLEAU[-1])
+    plt.figure()
+    plt.plot(tabN,tabErreur)
+    plt.grid()
+    plt.title('Graphe : erreur en fonction de N, k={}, nb={}'.format(k,nb))
+    plt.savefig('graphe_erreur_N.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabErreur
+
+'9. Variance asymptotique'
+
+#1. x0 sous pi invariant
+def x0_invariant():
+    rand=np.random.rand()
+    if (rand<1/(1+fact)):
+        x0=np.random.normal(0, 1, 1)[0]
+    else:
+        x0=np.random.normal(10, 1, 1)[0]
+    return x0
+
+#2. fixer une fct f : f(x)=x**2 par exemple  
+def f(x):
+    return x
+
+#3. calucler variance asymptotique
+def variance(N,k,nb):
+    TABLEAU=MH2_invariant(N,k,nb)
+    print(TABLEAU)
+    tab_sommes=[]    
+    for j in range(nb):
+        s=0
+        for i in range(N):
+            s+=f(TABLEAU[i][j])
+        tab_sommes+=[s/N]
+    print(tab_sommes)
+    return np.var(tab_sommes)
+
+#4. Variance asymptotique en fonction de k
+def graphe_variance_k(N,nb,nbk,kf,kl):
+    tabk=[] #k en abscisse
+    tabVariance=[] #variance en ordonnee
+    
+    for j in range(nbk):
+        k=int(kf+((kl-kf)/nbk)*j)
+        print(k)
+        tabk+=[k]
+        print(tabk)
+        tabVariance+=[variance(N,k,nb)]
+    plt.figure()
+    plt.plot(tabk,tabVariance)
+    plt.grid()
+    plt.title('Graphe : Variance en fonction de k, N={}, nb={}'.format(N,nb))
+    plt.savefig('graphe_variance_k.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabVariance
+
+#5. ESJD   
+def ESJD(N,k,nb):
+    TABLEAU=MH2_invariant(N,k,nb)
+    print(TABLEAU)
+    ESJD=0
+    for j in range(nb):
+        s=0
+        for i in range(N-1):
+            s+=((TABLEAU[i+1][j]-TABLEAU[i][j])**2)
+        ESJD+=s
+    return ESJD/(N*nb)
+
+#6. graphe ESJD en fonction de k
+    
+def graphe_ESJD_k(N,nb,nbk,kf,kl):
+    tabk=[] #k en abscisse
+    tabESJD=[] #variance en ordonnee
+    
+    for j in range(nbk):
+        k=int(kf+((kl-kf)/nbk)*j)
+        print(k)
+        tabk+=[k]
+        print(tabk)
+        tabESJD+=[ESJD(N,k,nb)]
+    plt.figure()
+    plt.plot(tabk,tabESJD)
+    plt.grid()
+    plt.title('Graphe : ESJD en fonction de k, N={}, nb={}'.format(N,nb))
+    plt.savefig('graphe_ESJD_k.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabESJD
+
+'''A FAIRE
+
+1. [DONE] Tester kde avec seulement une gaussienne banale pour voir à quelle N (ou T) on a erreur < 0.01 par ex
+2. [DONE] Pour le rapport : mettre courbes en pointilles
+3. [DONE] Faire nouveau graphe : erreur en fonction de N à k fixé
+4. [DONE] VARIANCE ASYMPTOTIQUE
+5. [DONE] FAIRE EN SORTE DE POUVOIR PLOTER LES COURBES MEME QUAND JE NE LE FAIS PAS POUR L'INSTANT (ex : quand je calcule une erreur : ploter le graphe associé)
+
+6. Remplacer student par gaussienne pour faire k<1
+7. peut etre rapprocher gaussiennes dans distrib
+8. Ploter histogramme et kde en même temps pour voir si kde bon ou non
+
+A FAIRE 2
+1. kde à remplacer par mixture of gaussian estimator
+=> j'aurai ainsi besoin de moins de nb car l'erreur va etre bien plus faible
+2. ESJD et variance : ajouter f indicatrice de x>12 par exemple : dans une queue de distribution pour voir
+si le graphe de la variance va dans l'autre sens
+3. ESJD et variance : rajouter compteur pour voir le pourcentage de propositions qui ont été
+acceptés/rejetés dans MH
+'''
