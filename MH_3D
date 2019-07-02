@@ -282,6 +282,4 @@ tous les tableaux de sortie soient comme pour MH_LI_3D_test et que kde_li marche
 j'ai ajouté à chaque point (i+1)*10**(-15) dans MH_LI_3D(N,k,x0,y0)
 - 4.1 et 4.2 peut etre a combiner en une seule fonction qui prend en entree une fonction,
   idem pour MH2_3D et MH2_LI_3D
-- ATTENTION !!! J'ai fait la meme erreur que la derniere fois : 
-  j'ai pris les points en horizontal et pas en vertical : ajouter nb aux fonctions !!
 '''
