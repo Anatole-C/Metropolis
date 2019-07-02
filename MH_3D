@@ -12,7 +12,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
-from scipy.integrate import quad
+from scipy.integrate import quad, dblquad
 import time
 
 fact=10
@@ -41,7 +41,7 @@ def plot_distribution_3D():
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='viridis', edgecolor='none')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
     ax.set_title('distribution 3D')
     
     ax.view_init(45, 300)
@@ -269,8 +269,35 @@ def kde_MH_LI_3D(N,k,x0,y0,nb,prec): #prec=100 : precision en x et en y, ie mail
 #    I = quad(difference, gauche, droite)
 #    return I[0]   
 
-def erreur_3D(N,k,x0,y0):
-    return 0
+def erreur_3D(N,k,x0,y0,nb):
+    values = MH2_3D(N,k,x0,y0,nb)
+    kernel = stats.gaussian_kde(values)
+    def difference(x,y):
+        return abs(kernel.evaluate([x,y])[0]-distrib_3D(x,y))
+    erreur=dblquad(distrib_3D, -np.inf, np.inf, lambda x: -np.inf, lambda x: -np.inf)
+    return erreur
+
+
+    x=np.linspace(-5,15,10)
+    y=np.linspace(-5,15,10)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    
+#    print(np.meshgrid(x,y))
+#    print(X)
+    Z=difference(X,Y)
+    
+    fig = plt.figure(figsize=(13,7))
+    ax = plt.axes(projection='3d')
+    
+    ax.contour3D(X, Y, Z, 50, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('distribution 3D')
+    
+    ax.view_init(45, 300)
+    plt.show(fig)
 
 
 '''[A FAIRE]
@@ -282,4 +309,5 @@ tous les tableaux de sortie soient comme pour MH_LI_3D_test et que kde_li marche
 j'ai ajouté à chaque point (i+1)*10**(-15) dans MH_LI_3D(N,k,x0,y0)
 - 4.1 et 4.2 peut etre a combiner en une seule fonction qui prend en entree une fonction,
   idem pour MH2_3D et MH2_LI_3D
+- Je n'arrive pas a faire erreur ni a ploter erreur
 '''
