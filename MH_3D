@@ -6,8 +6,7 @@ Created on Sat Jun 29 16:07:09 2019
 @author: anatolechouard
 """
 
-from mpl_toolkits import mplot3d
-
+#from mpl_toolkits import mplot3d
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,11 +51,64 @@ def plot_distribution_3D(prec):
 
 '3.1 Algorithme de Metropolis-Hastings classique'
 
+#1. x0 sous pi invariant
+def pi_invariant_3D():
+    rand=(1+2*fact)*np.random.rand()
+    if (rand<1):
+        x0=np.random.normal(0, 1, 1)[0]
+        y0=np.random.normal(10,1, 1)[0]
+    elif (rand<1+fact):
+        x0=np.random.normal(0, 1, 1)[0]
+        y0=np.random.normal(0, 1, 1)[0]        
+    else:
+        x0=np.random.normal(10,1, 1)[0]
+        y0=np.random.normal(0, 1, 1)[0]        
+    return (x0,y0)
+
 def MH_3D(N,k,x0,y0): #renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
     
     x=x0 #x de depart
     y=y0 #y de depart
     samples=[[x0],[y0]]
+        
+    f=distrib_3D(x,y)
+    
+    for i in range(N-1):
+        
+        #MH pour x
+        prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_3D(x,y)
+        f2=distrib_3D(prop_x,y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                x=prop_x
+        else:
+            f=f2
+            x=prop_x
+            
+        #MH pour y
+        prop_y=y+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_3D(x,y)
+        f2=distrib_3D(x,prop_y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                y=prop_y
+        else:
+            f=f2
+            y=prop_y
+        samples[0]+=[x+(np.random.rand())*10**(-10)]
+        samples[1]+=[y+(np.random.rand())*10**(-10)]
+    return samples
+
+def MH_3D_inv(N,k): #renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+    
+    x=pi_invariant_3D()[0]
+    y=pi_invariant_3D()[1]
+    samples=[[x],[y]]
         
     f=distrib_3D(x,y)
     
@@ -126,9 +178,9 @@ def MH_LI_3D(N,k,x0,y0):#renvoie un tableau des coordonnees des points acceptes 
         #integrale selon y, x fixe
         int2=quad(distrib_3D_2,-np.inf,np.inf,args=(x,))[0]
         
-        rap_int=int1/(int1+int2)
-        
+        rap_int=int1/(int1+int2)     
         rand=np.random.rand()
+        
         if (rap_int>rand): #on modifie alors x
         
             #MH pour x
@@ -255,9 +307,8 @@ def erreur_MH_3D(N,k,x0,y0,nb):
 #    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
     erreur=dblquad(difference, -10, 20, lambda x: -10, lambda x: 20)
     return erreur
-
-    
-def plot_erreur_3D(N,k,x0,y0,nb,prec):
+ 
+def plot_erreur_MH_3D(N,k,x0,y0,nb,prec):
     
     x=np.linspace(-5,15,prec)
     y=np.linspace(-5,15,prec)
@@ -315,10 +366,11 @@ def plot_erreur_3D(N,k,x0,y0,nb,prec):
     ax.set_title('MH 3D')
 #    fig.colorbar(Z2, shrink=0.5, aspect=5) #colorbar bug !
     ax.view_init(45, 300)
-    plt.show(fig2)   
+    plt.show(fig2)
     
-#    integrale_kernel=dblquad(fonction_kernel, -10, 20, lambda x: -10, lambda x: 20)[0]
-#    return integrale_kernel
+    #    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+    erreur=dblquad(difference, -10, 20, lambda x: -10, lambda x: 20)
+    return erreur
 
 def erreur_MH_LI_3D(N,k,x0,y0,nb):
     values = MH2_LI_3D(N,k,x0,y0,nb)
@@ -328,6 +380,70 @@ def erreur_MH_LI_3D(N,k,x0,y0,nb):
     def difference(x,y):
         return abs(fonction_kernel(x,y)-distrib_3D(x,y))
     erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+    return erreur
+
+def plot_erreur_MH_LI_3D(N,k,x0,y0,nb,prec):
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])  
+    values = MH2_LI_3D(N,k,x0,y0,nb)
+    kernel = stats.gaussian_kde(values)
+    
+    def fonction_kernel(x,y):
+        return kernel.evaluate([x,y])[0]
+    def difference(x,y):
+        return abs(fonction_kernel(x,y)-distrib_3D(x,y))
+
+
+    Z1=distrib_3D(X,Y)
+    Z2 = np.reshape(kernel(positions).T, X.shape)
+    Z=abs(Z1-Z2)
+   
+    fig = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    
+    ax.contour3D(X, Y, Z, prec, cmap='binary')   
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('difference 3D')
+#    fig.colorbar(Z, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig)
+
+####fig1
+    
+    fig1 = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    ax.contour3D(X, Y, Z1, prec, cmap='binary')     
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z1, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('distribution 3D')
+#    fig.colorbar(Z1, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig1)
+
+####fig2
+    
+    fig2 = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')  
+    ax.contour3D(X, Y, Z2, prec, cmap='binary') 
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z2, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('MH 3D')
+#    fig.colorbar(Z2, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig2)
+    
+    #    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+    erreur=dblquad(difference, -10, 20, lambda x: -10, lambda x: 20)
     return erreur
 
 '''[A FAIRE]
@@ -344,4 +460,9 @@ ATTENTION : calculs plus longs du coup ! Est-ce qu'il y a une autre solution ?
 - Idee pour cet aprem : ecrire distrib_3D(tab) pour pouvoir ecrire distrib_3D(positions)
 - integrer entre -10 et 20 (plus rapide) ou entre -inf et inf (plus precis) ?
 - colorbar bug !!
+- [PROBLEMES] :
+- erreur met trop de temps a calculer
+- erreur bcp trop grande : la distrib est beaucoup plus fine que les kernels
+- MH LI trop lent et les gaussiennes ne sont plus symetriques : etirees en y et pas en x
+- commencer sous pi invariant !!
 '''
