@@ -744,27 +744,29 @@ def plot_erreur_MH_LI_3D_inv(N,k,nb,prec):
 
 
 '''[A FAIRE]
-- MH_3D : commencer avec un point (x0, y0) ou sous pi invariant ?
 - MH_LI_3D : multiplier N par 2 ?
-- modifier MH_3D, MH2_LI_3D MH_LI_3D et MH2_LI_3D pour que
-tous les tableaux de sortie soient comme pour MH_LI_3D_test et que kde_li marche bien
 - 3.2 : Remarque : pour ne pas avoir plusieurs fois le meme point (sinon bug kde),
 j'ai ajouté à chaque point (np.random.rand())*10**(-10) dans MH_LI_3D(N,k,x0,y0)
 ATTENTION : calculs plus longs du coup ! Est-ce qu'il y a une autre solution ?
 - 4.1 et 4.2 peut etre a combiner en une seule fonction qui prend en entree une fonction,
   idem pour MH2_3D et MH2_LI_3D
 - Verifier si mon integrale double est bonne
-- Idee pour cet aprem : ecrire distrib_3D(tab) pour pouvoir ecrire distrib_3D(positions)
+- Idee : ecrire distrib_3D(tab) pour pouvoir ecrire distrib_3D(positions)
 - integrer entre -10 et 20 (plus rapide) ou entre -inf et inf (plus precis) ?
 - colorbar bug !!
 - [PROBLEMES] :
 - erreur met trop de temps a calculer
 - erreur bcp trop grande : la distrib est beaucoup plus fine que les kernels
 - MH LI trop lent et les gaussiennes ne sont plus symetriques : etirees en y et pas en x
-- commencer sous pi invariant !!
+- rajouter valeur des variables aux graphes
+
+
+
 - GROS PROBLEME : les bosses de la kde sont plus elargies
   que celles de la distribution de base !
 - Solution (?) : remplacer kde par histogrammes ?
 - PROBELEME : "The maximum number of subdivisions (50) has been achieved"
   quand j'integre des fonctions non integrables : perte de temps !
+- Solution (?) : mettre nombre max de subdivision à 5 par exemple ?
+  
 '''
