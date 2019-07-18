@@ -1,0 +1,459 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jul 16 11:05:53 2019
+
+@author: anatolechouard
+"""
+
+from mpl_toolkits import mplot3d
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
+from scipy.integrate import quad, dblquad
+import time
+
+fact=10
+poids=1 #poids de Student
+
+
+'_______________________________________________________________________________'
+
+'1. Fonction de distribution'
+
+def distrib_2D(x,y):
+    return (1/((2*fact)+1))*(fact*(1/(2*np.pi))*math.e**(((-((x-0)**2))/2)-(((y-0)**2)/2))+fact*(1/(2*np.pi))*math.e**(((-((x-10)**2))/2)-(((y-0)**2)/2))+(1/(2*np.pi))*math.e**(((-((x-0)**2))/2)-(((y-10)**2)/2)))
+    
+def integrale_distrib_2D(): #pour verifier que l'integrale vaut 1
+    return dblquad(distrib_2D, -10, 20, lambda x: -10, lambda x: 20)[0]
+
+def distrib_2D_2(y,x): #pour pouvoir integrer selon x ou y facilement ensuite (astuce)
+    return distrib_2D(x,y)
+
+'_______________________________________________________________________________'
+
+'2. Plot de la fct de distribution'
+
+def plot_distribution_2D(prec): #prec(=100) : precision de la grille 2D
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    Z=distrib_2D(X,Y)
+    
+    fig = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    
+    ax.contour3D(X, Y, Z, prec, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('distribution 2D')
+#    fig.colorbar(Z, shrink=0.5, aspect=5)    
+    ax.view_init(45, 300)
+    plt.show(fig)
+
+'_______________________________________________________________________________'
+
+'3.1 Algorithme de Metropolis-Hastings classique'
+
+#1. x0 sous pi invariant
+def pi_invariant_2D():
+    rand=(1+2*fact)*np.random.rand()
+    if (rand<1):
+        x0=np.random.normal(0, 1, 1)[0]
+        y0=np.random.normal(10,1, 1)[0]
+    elif (rand<(1+fact)):
+        x0=np.random.normal(0, 1, 1)[0]
+        y0=np.random.normal(0, 1, 1)[0]        
+    else:
+        x0=np.random.normal(10,1, 1)[0]
+        y0=np.random.normal(0, 1, 1)[0]        
+    return (x0,y0)
+
+def MH_2D_inv(N,k): #renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+    
+    p=pi_invariant_2D()
+    x=p[0]
+    y=p[1]
+    samples=[[x],[y]]
+        
+    f=distrib_2D(x,y)
+    
+    for i in range(N-1):
+        
+        #MH pour x
+        prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_2D(x,y)
+        f2=distrib_2D(prop_x,y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                x=prop_x
+        else:
+            f=f2
+            x=prop_x
+            
+        #MH pour y
+        prop_y=y+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_2D(x,y)
+        f2=distrib_2D(x,prop_y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                y=prop_y
+        else:
+            f=f2
+            y=prop_y
+        samples[0]+=[x+(np.random.rand())*10**(-10)]
+        samples[1]+=[y+(np.random.rand())*10**(-10)]
+    return samples
+
+def MH2_2D_inv(N,k,nb): #donne les nb coordonnes (x,y) des points numeros N-1
+    start = time.time()   
+    T=[[],[]]  
+    for i in range(nb):
+#        print(i)
+        TABLEAU=MH_2D_inv(N,k)
+        T[0]+=[TABLEAU[0][-1]]
+        T[1]+=[TABLEAU[1][-1]]  
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    return T
+
+'_______________________________________________________________________________'
+
+'3.2 Algorithme de Metropolis-Hastings LOCALLY INFORMED : MH_LI'
+
+def MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+#    start = time.time()
+    
+    #    N=2*N #multiplier N par 2 pour avoir le meme N nombre de propositions que MH normal
+    p=pi_invariant_2D()
+    x=p[0]
+    y=p[1]
+    samples=[[x],[y]]
+        
+    f=distrib_2D(x,y)
+    
+    for i in range(N-1):
+        #rapport des integrales :
+        
+        #integrale selon x, y fixe
+        int1=quad(distrib_2D,-np.inf,np.inf,args=(y,))[0]
+        
+        #integrale selon y, x fixe
+        int2=quad(distrib_2D_2,-np.inf,np.inf,args=(x,))[0]
+        
+        rap_int=int1/(int1+int2)     
+        rand=np.random.rand()
+        
+        if (rap_int>rand): #on modifie alors x
+        
+            #MH pour x
+            prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+            f=distrib_2D(x,y)
+            f2=distrib_2D(prop_x,y)
+            if (f>f2):
+                u=np.random.rand()
+                if u<(f2/f):
+                    f=f2
+                    x=prop_x
+            else:
+                f=f2
+                x=prop_x
+                
+        else :
+            
+            #MH pour y
+            prop_y=y+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+            f=distrib_2D(x,y)
+            f2=distrib_2D(x,prop_y)
+            if (f>f2):
+                u=np.random.rand()
+                if u<(f2/f):
+                    f=f2
+                    y=prop_y
+            else:
+                f=f2
+                y=prop_y
+        samples[0]+=[x+(np.random.rand())*10**(-10)]
+        samples[1]+=[y+(np.random.rand())*10**(-10)]
+#    end = time.time()
+#    print('execution time :')
+#    print(end - start)
+    return samples
+
+def MH2_LI_2D_inv(N,k,nb): #donne les nb coordonnes (x,y) des points numeros N-1
+    start = time.time()    
+    T=[[],[]]   
+    for i in range(nb):
+        print(i)
+        TABLEAU=MH_LI_2D_inv(N,k)
+        T[0]+=[TABLEAU[0][-1]]
+        T[1]+=[TABLEAU[1][-1]]  
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    return T
+
+'_______________________________________________________________________________'
+
+'4. Erreur integrale du estimator en norme TV : kde'
+
+'4.1 : kde de MH classique'
+
+def kde_MH_2D_inv(N,k,nb,prec): #prec=100 : precision en x et en y, ie maillage fin ou non
+    start = time.time()
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])
+    
+    values = MH2_2D_inv(N,k,nb)
+#    print(values)
+    kernel = stats.gaussian_kde(values)
+    Z = np.reshape(kernel(positions).T, X.shape)
+    
+    fig = plt.figure(figsize=(11,7))
+    ax = plt.axes(projection='3d') 
+    ax.contour3D(X, Y, Z, 50, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    surface = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('Surface de la KDE')
+    fig.colorbar(surface, shrink=0.5, aspect=5)  
+    ax.view_init(45, 300)
+    
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    
+    plt.show(fig)
+    
+'4.2 : kde de MH LI'   
+ 
+def kde_MH_LI_2D_inv(N,k,nb,prec): #prec=100 : precision en x et en y, ie maillage fin ou non
+    start = time.time()
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])
+
+    values = MH2_LI_2D_inv(N,k,nb)
+    kernel = stats.gaussian_kde(values)
+    Z = np.reshape(kernel(positions).T, X.shape)
+    
+    fig = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    ax.contour3D(X, Y, Z, prec, cmap='binary')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    surface = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('Surface de la KDE')
+    fig.colorbar(surface, shrink=0.5, aspect=5)
+    ax.view_init(45, 300)
+    
+    end = time.time()
+    print('execution time :')
+    print(end - start)
+    
+    plt.show(fig)
+    
+'_______________________________________________________________________________'
+
+'5. Plot et calcul : integrale de estimator, ie la difference entre la distribution et le kde' 
+    
+def erreur_MH_2D_inv(N,k,nb):
+    values = MH2_2D_inv(N,k,nb)
+    kernel = stats.gaussian_kde(values)
+    def fonction_kernel(x,y):
+        return kernel.evaluate([x,y])[0]
+    def difference(x,y):
+        return abs(fonction_kernel(x,y)-distrib_2D(x,y))
+#    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+    erreur=dblquad(difference, -10, 20, lambda x: -10, lambda x: 20)
+    return erreur
+
+def plot_erreur_MH_2D_inv(N,k,nb,prec):
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])  
+    
+    values = MH2_2D_inv(N,k,nb)
+    kernel = stats.gaussian_kde(values)
+    
+    values1 = MH2_2D_inv(1,k,nb)
+    kernel1 = stats.gaussian_kde(values1)
+    
+    def fonction_kernel(x,y):
+        return kernel.evaluate([x,y])[0]
+    def fonction_kernel1(x,y):
+        return kernel1.evaluate([x,y])[0]
+
+#    def difference(x,y):
+#        return abs(fonction_kernel(x,y)-fonction_kernel1(x,y))
+
+
+    Z1= np.reshape(kernel1(positions).T, X.shape)
+    Z2 = np.reshape(kernel(positions).T, X.shape)
+    Z=abs(Z1-Z2)
+   
+    fig = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    
+    ax.contour3D(X, Y, Z, prec, cmap='binary')   
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('difference 2D')
+#    fig.colorbar(Z, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig)
+
+####fig1
+    
+    fig1 = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    ax.contour3D(X, Y, Z1, prec, cmap='binary')     
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z1, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('distribution 2D')
+#    fig.colorbar(Z1, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig1)
+
+####fig2
+    
+    fig2 = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')  
+    ax.contour3D(X, Y, Z2, prec, cmap='binary') 
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z2, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('MH 2D')
+#    fig.colorbar(Z2, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig2)
+    
+#    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+#    erreur=dblquad(difference, -10, 20, lambda x: -10, lambda x: 20)
+#    return erreur
+    
+def erreur_MH_LI_2D_inv(N,k,nb):
+    values = MH2_LI_2D_inv(N,k,nb)
+    kernel = stats.gaussian_kde(values)
+    def fonction_kernel(x,y):
+        return kernel.evaluate([x,y])[0]
+    def difference(x,y):
+        return abs(fonction_kernel(x,y)-distrib_2D(x,y))
+    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+    return erreur   
+
+def plot_erreur_MH_LI_2D_inv(N,k,nb,prec):
+    
+    x=np.linspace(-5,15,prec)
+    y=np.linspace(-5,15,prec)
+    X,Y=np.meshgrid(x,y) #grid 2D en combinant les deux grid 1D
+    positions = np.vstack([X.ravel(), Y.ravel()])  
+    
+    values = MH2_LI_2D_inv(N,k,nb)
+    kernel = stats.gaussian_kde(values)
+    
+    def fonction_kernel(x,y):
+        return kernel.evaluate([x,y])[0]
+    def difference(x,y):
+        return abs(fonction_kernel(x,y)-distrib_2D(x,y))
+
+
+    Z1=distrib_2D(X,Y)
+    Z2 = np.reshape(kernel(positions).T, X.shape)
+    Z=abs(Z1-Z2)
+   
+    fig = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    
+    ax.contour3D(X, Y, Z, prec, cmap='binary')   
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('difference 2D')
+#    fig.colorbar(Z, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig)
+
+####fig1
+    
+    fig1 = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')
+    ax.contour3D(X, Y, Z1, prec, cmap='binary')     
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z1, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('distribution 2D')
+#    fig.colorbar(Z1, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig1)
+
+####fig2
+    
+    fig2 = plt.figure(figsize=(10,7))
+    ax = plt.axes(projection='3d')  
+    ax.contour3D(X, Y, Z2, prec, cmap='binary') 
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.plot_surface(X, Y, Z2, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+    ax.set_title('MH 2D')
+#    fig.colorbar(Z2, shrink=0.5, aspect=5) #colorbar bug !
+    ax.view_init(45, 300)
+    plt.show(fig2)
+    
+#    erreur=dblquad(difference, -np.inf, np.inf, lambda x: -np.inf, lambda x: np.inf)
+#    erreur=dblquad(difference, -10, 20, lambda x: -10, lambda x: 20)
+#    return erreur
+
+
+'''[A FAIRE]
+- MH_LI_2D : multiplier N par 2 ?
+- 3.2 : Remarque : pour ne pas avoir plusieurs fois le meme point (sinon bug kde),
+j'ai ajouté à chaque point (np.random.rand())*10**(-10) dans MH_LI_2D(N,k,x0,y0)
+ATTENTION : calculs plus longs du coup ! Est-ce qu'il y a une autre solution ?
+- 4.1 et 4.2 peut etre a combiner en une seule fonction qui prend en entree une fonction,
+  idem pour MH2_2D et MH2_LI_2D
+- Verifier si mon integrale double est bonne
+- Idee : ecrire distrib_2D(tab) pour pouvoir ecrire distrib_2D(positions)
+- integrer entre -10 et 20 (plus rapide) ou entre -inf et inf (plus precis) ?
+- colorbar bug !!
+- [PROBLEMES] :
+- erreur met trop de temps a calculer
+- erreur bcp trop grande : la distrib est beaucoup plus fine que les kernels
+- MH LI trop lent et les gaussiennes ne sont plus symetriques : etirees en y et pas en x
+- rajouter valeur des variables aux graphes
+
+
+
+- GROS PROBLEME : les bosses de la kde sont plus elargies
+  que celles de la distribution de base !
+- Solution (?) : remplacer kde par histogrammes ?
+- PROBELEME : "The maximum number of subdivisions (50) has been achieved"
+  quand j'integre des fonctions non integrables : perte de temps !
+- Solution (?) : mettre nombre max de subdivision à 5 par exemple ?
+  
+'''
