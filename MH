@@ -467,17 +467,18 @@ def x0_invariant():
 
 #2. fixer une fct f : f(x)=x**2 par exemple  
 def f(x):
-    return x
+    return x**2
 
 #3. calucler variance asymptotique
 def variance(N,k,nb):
     TABLEAU=MH2_invariant(N,k,nb)
+    print('TABLEAU')
     print(TABLEAU)
     tab_sommes=[]    
-    for j in range(nb):
+    for i in range(nb):
         s=0
-        for i in range(N):
-            s+=f(TABLEAU[i][j])
+        for j in range(N):
+            s+=f(TABLEAU[j][i])
         tab_sommes+=[s/N]
     print(tab_sommes)
     return np.var(tab_sommes)
@@ -507,12 +508,12 @@ def ESJD(N,k,nb):
     TABLEAU=MH2_invariant(N,k,nb)
     print(TABLEAU)
     ESJD=0
-    for j in range(nb):
+    for i in range(nb):
         s=0
-        for i in range(N-1):
-            s+=((TABLEAU[i+1][j]-TABLEAU[i][j])**2)
+        for j in range(N-1):
+            s+=((TABLEAU[j+1][i]-TABLEAU[j][i])**2)
         ESJD+=s
-    return ESJD/(N*nb)
+    return (ESJD/(N*nb))
 
 #6. graphe ESJD en fonction de k
     
