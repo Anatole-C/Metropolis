@@ -84,12 +84,22 @@ def plot(tab):
     
        
 
-'1. Fonction de distribution'
+'1.1 Fonction de distribution'
 
 def distrib(x):
     return (1/(1+fact))*((1/(math.sqrt(2*math.pi)))*math.e**((-x**2)/2) + fact*(1/(math.sqrt(2*math.pi)))*math.e**((-(x-m)**2)/2))
 
-'2. Plot de la fct de distribution'
+
+'1.2 Fonction de distribution corrigée' #nb fois x0 invariant puis kde
+def distrib_corrigee(x,nb):
+    TAB=[]
+    for i in range(nb):
+        x0=x0_invariant()
+        TAB+=[x0]
+    gkde=stats.gaussian_kde(TAB)
+    return (gkde(x)[0])
+
+'2.1 Plot de la fct de distribution'
 
 def distribution():
     X=np.linspace(gauche,droite,bins)
@@ -102,6 +112,19 @@ def distribution():
     plt.show()
     plt.close()
 
+'2.2 Plot de la fct de distribution corrigée'
+
+def distribution_corrigee(nb):
+    X=np.linspace(gauche,droite,bins)
+    Y=np.asarray([distrib_corrigee(x,nb) for x in X])
+    plt.plot(X,Y)
+    
+    plt.grid()
+    plt.title('Fonction de distribution')
+    plt.savefig('distribution.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
 '3.1 Algorithme de Metropolis-Hastings'
 
 def MH(N,k,x0): #renvoie un tableau des abscisses x des points acceptes par Metropolis-Hastings
@@ -161,8 +184,16 @@ def erreur(N,k,x0,nb):
     def difference(x):
         return abs(gkde.evaluate(x)[0]-distrib(x))
     I = quad(difference, gauche, droite)
-    return I[0]
+    return (I[0]/2)
 
+def erreur_corrigee(N,k,x0,nb):
+    TABLEAU=MH2(N,k,x0,nb) #points pour estimer la distribution
+    gkde=stats.gaussian_kde(TABLEAU[-1])#nature de l'estimateur : gaussian kernel density estimator
+    print(TABLEAU[-1])  
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-distrib_corrigee(x,nb))
+    I = quad(difference, gauche, droite)
+    return (I[0]/2)
 
 def erreur2(tab):
     gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
@@ -170,7 +201,15 @@ def erreur2(tab):
     def difference(x):
         return abs(gkde.evaluate(x)[0]-distrib(x))
     I = quad(difference, gauche, droite)
-    return I[0]   
+    return (I[0]/2)
+
+def erreur2_corrigee(tab,nb):
+    gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
+    print(tab)  
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-distrib_corrigee(x,nb))
+    I = quad(difference, gauche, droite)
+    return (I[0]/2)
 
 '4.2 Plot integrale de estimator' #Pour verifier que erreur est bien calculee
 
@@ -199,6 +238,37 @@ def plot_estimator(N,k,x0,nb):
     plt.legend()
     plt.show()
     
+    
+def plot_estimator_corrigee(N,k,x0,nb):
+    X=np.linspace(gauche,droite,bins) #espace sur lequel on estime
+    
+    TABLEAU=MH2(N,k,x0,nb) #points pour estimer la distribution
+    TAB=[]
+    for i in range(nb):
+        x0=x0_invariant()
+        TAB+=[x0]
+    
+    gkde=stats.gaussian_kde(TABLEAU[-1])#nature de l'estimateur : gaussian kernel density estimator
+    kdepdf = gkde.evaluate(X) #estime ici sur l'espace X
+    
+    gkde2=stats.gaussian_kde(TAB)
+    kdepdf2 = gkde2.evaluate(X)
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-gkde2.evaluate(x)[0])
+    
+#    plt.figure()
+    Z=np.asarray([difference(x) for x in X]) #difference
+    
+    plt.plot(X, kdepdf2, label='distribution corrigee', color="b") #plot distribution de base
+    plt.plot(X, kdepdf, '--', label='kde') #plot estimateur
+    plt.plot(X,Z, '-.', label='difference') #plot difference
+#    plt.plot(X, abs(kdepdf-Y), label='courbe que devrait etre difference') #plot la vraie difference
+    
+    plt.grid()
+    plt.title('Kernel Density Estimation corrected version')
+    plt.legend()
+    plt.show()
+    
 def plot_estimator2(tab): #idem plot_estimator mais a faire avec TABLEAU(N,k,x0,nb)[-1]
     X=np.linspace(gauche,droite,bins) #espace sur lequel on estime
     gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
@@ -220,7 +290,32 @@ def plot_estimator2(tab): #idem plot_estimator mais a faire avec TABLEAU(N,k,x0,
     plt.legend()
 #    plt.show()
 
-
+def plot_estimator2_corrigee(tab,nb): #idem plot_estimator mais a faire avec TABLEAU(N,k,x0,nb)[-1]
+    X=np.linspace(gauche,droite,bins) #espace sur lequel on estime
+    gkde=stats.gaussian_kde(tab)#nature de l'estimateur : gaussian kernel density estimator
+    kdepdf = gkde.evaluate(X) #estime ici sur l'espace X
+    TAB=[]
+    for i in range(nb):
+        x0=x0_invariant()
+        TAB+=[x0]
+    gkde2=stats.gaussian_kde(TAB)
+    kdepdf2 = gkde2.evaluate(X)
+    
+    def difference(x):
+        return abs(gkde.evaluate(x)[0]-gkde2.evaluate(x)[0])
+    
+    
+    plt.figure()
+    Z=np.asarray([difference(x) for x in X]) #difference
+    
+    plt.plot(X,kdepdf2, label='distribution', color="b") #plot distribution de base
+    plt.plot(X, kdepdf, '--', label='kde') #plot estimateur
+    plt.plot(X,Z, '-.', label='difference') #plot difference
+    
+    plt.grid()
+    plt.title('Kernel Density Estimation')
+    plt.legend()
+#    plt.show()
 '5. Precision de Metropolis-Hastings avec histogrammes'
 
 def precision(N,k,x0,nb): #evalue l'integrale entre la fct de distrib et MH, nb : nb de repetitions
@@ -317,7 +412,7 @@ def graphePrecision2(N,x0,nb,nbk,kf,kl): #precision en fonction de k
     plt.close()
     return tabPrecision
 
-'6.2 Graphe : Erreur en fonction de k, N fixe AVEC GKDE'
+'6.2.1 Graphe : Erreur en fonction de k, N fixe AVEC GKDE'
 
 def graphe_erreur(N,x0,nb,nbk,kf,kl): #erreur en fonction de k
 #N : nb d'iterations
@@ -345,6 +440,33 @@ def graphe_erreur(N,x0,nb,nbk,kf,kl): #erreur en fonction de k
     plt.close()
     return tabErreur
 
+'6.2.2 Graphe : Erreur corrigee en fonction de k, N fixe AVEC GKDE'
+
+def graphe_erreur_corrigee(N,x0,nb,nbk,kf,kl): #erreur en fonction de k
+#N : nb d'iterations
+#x0 : point de depart de MH
+#nb : nb de repetitions de MH
+#nbk : nb de k differents que l'on teste sur le graphe
+#kf : k first : premier k que l'on teste
+#kl : k last : dernier k que l'on teste
+    
+    tabK=[] #parametre de Student en abscisse
+    tabErreur=[] # Precision en ordonnee
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        TABLEAU=MH2(N,k,x0,nb)
+        tabErreur+=[erreur2_corrigee(TABLEAU[-1],nb)]
+        plot_estimator2_corrigee(TABLEAU[-1],nb)
+    plt.figure()
+    plt.plot(tabK,tabErreur)
+    plt.grid()
+    plt.title('Graphe : erreur corrigee en fonction de k, N={}, nb={}'.format(N,nb))
+    plt.savefig('graphe_erreur.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabErreur
 
 '7.1 Graphe : N en fonction de k, precision fixee : on cherche pout tout k le N tel que precision<eps'
 #on raisonne par dichotomie pour trouver N
@@ -431,6 +553,52 @@ def grapheNk2(x0,nb,nbk,kf,kl,eps):
     plt.close()
     return tabE
 
+def grapheNk2_corrigee(x0,nb,nbk,kf,kl,eps):
+    tabK=[] #parametre de Student en abscisse
+    tabN=[] # N en ordonnee
+    tabE=[]
+    
+    for j in range(nbk):
+        k=kf+((kl-kf)/nbk)*j
+        print(k)
+        tabK+=[k]
+        
+        c1=0
+        c2=0
+        N=1000
+        Nfinal=N
+        TABLEAU=MH2(1000,k,x0,nb)
+        tab=TABLEAU[-1]
+        e=erreur2_corrigee(tab,nb)
+        efinal=e
+        
+        while (c1<20):
+            if (e>eps):
+                N=min(1000,math.floor(N*(2-(c1/20))))
+                tab=TABLEAU[N-1]
+            else:
+                efinal=e
+                Nfinal=N
+                c2+=1
+                print(c2)
+                N=max(1,math.floor(N/(1.5-c2/40)))
+                tab=TABLEAU[N-1]
+                
+            e=erreur2_corrigee(tab,nb)
+            c1+=1
+            print(c1)
+        plot_estimator2_corrigee(tab,nb)
+        tabE+=[efinal]
+        tabN+=[Nfinal]
+    plt.figure()
+    plt.plot(tabK,tabN)
+    plt.grid()
+    plt.title('Graphe N en fonction de k')
+    plt.savefig('graphe_Nk.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabE
+
 '8. Graphe : erreur en fonction de N, k fixe' #tres lent
 
 def graphe_erreur_N(k,x0,nb,nbN,Nf,Nl):
@@ -445,6 +613,27 @@ def graphe_erreur_N(k,x0,nb,nbN,Nf,Nl):
         TABLEAU=MH2(N,k,x0,nb)
         tabErreur+=[erreur2(TABLEAU[-1])]
         plot_estimator2(TABLEAU[-1])
+    plt.figure()
+    plt.plot(tabN,tabErreur)
+    plt.grid()
+    plt.title('Graphe : erreur en fonction de N, k={}, nb={}'.format(k,nb))
+    plt.savefig('graphe_erreur_N.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabErreur
+
+def graphe_erreur_N_corrigee(k,x0,nb,nbN,Nf,Nl):
+    tabN=[] # N en abscisse
+    tabErreur=[] # erreur en ordonnee
+    
+    for j in range(nbN):
+        N=int(Nf+((Nl-Nf)/nbN)*j)
+        print(N)
+        tabN+=[N]
+        print(tabN)
+        TABLEAU=MH2(N,k,x0,nb)
+        tabErreur+=[erreur2_corrigee(TABLEAU[-1],nb)]
+        plot_estimator2_corrigee(TABLEAU[-1],nb)
     plt.figure()
     plt.plot(tabN,tabErreur)
     plt.grid()
@@ -535,6 +724,7 @@ def graphe_ESJD_k(N,nb,nbk,kf,kl):
     plt.show()
     plt.close()
     return tabESJD
+
 
 '''A FAIRE
 
