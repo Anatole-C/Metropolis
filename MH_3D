@@ -170,13 +170,12 @@ def MH_2D(N,k,x0,y0): #renvoie un tableau des coordonnees des points acceptes pa
             compteur_y+=1
             samples[1]+=[y]
         
-#    pourcentage_x=(compteur_x/N)*100
-#    pourcentage_y=(compteur_y/N)*100
-#    pourcentage=(pourcentage_x+pourcentage_y)/2   
-#    print(pourcentage)
+    pourcentage_x=(compteur_x/N)*100
+    pourcentage_y=(compteur_y/N)*100
+    pourcentage=(pourcentage_x+pourcentage_y)/2   
+    print(pourcentage)
     
     return samples
-
 
 def MH2_2D(N,k,x0,y0,nb): #donne les nb coordonnes (x,y) des points numeros N-1
 #    start = time.time()   
@@ -261,10 +260,10 @@ def MH_2D_inv(N,k): #renvoie un tableau des coordonnees des points acceptes par 
             compteur_y+=1
             samples[1]+=[y]
         
-#    pourcentage_x=(compteur_x/N)*100
-#    pourcentage_y=(compteur_y/N)*100
-#    pourcentage=(pourcentage_x+pourcentage_y)/2   
-#    print(pourcentage)
+    pourcentage_x=(compteur_x/N)*100
+    pourcentage_y=(compteur_y/N)*100
+    pourcentage=(pourcentage_x+pourcentage_y)/2   
+    print(pourcentage)
     
     return samples
 
@@ -420,10 +419,10 @@ def MH_LI_2D(N,k,x0,y0):#renvoie un tableau des coordonnees des points acceptes 
 #    print('compteur')
 #    print(compteur)
                 
-#    pourcentage_x=(compteur_x/N)*100
-#    pourcentage_y=(compteur_y/N)*100
-#    pourcentage=(pourcentage_x+pourcentage_y)/2
-#    print(pourcentage) 
+    pourcentage_x=(compteur_x/N)*100
+    pourcentage_y=(compteur_y/N)*100
+    pourcentage=(pourcentage_x+pourcentage_y)
+    print(pourcentage) 
                 
 #    end = time.time()
 #    print('execution time :')
@@ -569,10 +568,10 @@ def MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnees des points acceptes pa
 #    print('compteur')
 #    print(compteur)
                 
-#    pourcentage_x=(compteur_x/N)*100
-#    pourcentage_y=(compteur_y/N)*100
-#    pourcentage=(pourcentage_x+pourcentage_y)/2
-#    print(pourcentage) 
+    pourcentage_x=(compteur_x/N)*100
+    pourcentage_y=(compteur_y/N)*100
+    pourcentage=(pourcentage_x+pourcentage_y)
+    print(pourcentage) 
                 
 #    end = time.time()
 #    print('execution time :')
@@ -702,7 +701,7 @@ def erreur_MH_2D(N,k,x0,y0,nb):
     options={'limit':10}
     integral=nquad(difference,[[-10,20],[-10,20]],opts=[options,options])
 
-    return integral
+    return (integral/2)
 
  
 def plot_erreur_MH_2D(N,k,x0,y0,nb,prec):
@@ -788,7 +787,7 @@ def erreur_MH_LI_2D(N,k,x0,y0,nb):
     options={'limit':10}
     integral=nquad(difference,[[-10,20],[-10,20]],opts=[options,options])
     
-    return integral
+    return (integral/2)
 
 def plot_erreur_MH_LI_2D(N,k,x0,y0,nb,prec):
     
@@ -1064,6 +1063,224 @@ def graphe_erreur_N_2D(k,x0,y0,nb,nbN,Nf,Nl):
 #    plt.show()
 #    plt.close()
 #    return tabErreurLI
+
+'_______________________________________________________________________________'  
+'9. Pourcentage acceptation MH et MH LI'
+
+def pourcentage_acceptation_MH_2D_inv(N,k): #renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+
+    p=pi_invariant_2D()
+    x=p[0]
+    y=p[1]
+    samples=[[x],[y]]
+        
+    f=distrib_2D(x,y)
+    
+    compteur_x=0
+    compteur_y=0
+    
+    for i in range(N-1):
+        
+        #MH pour x
+        prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_2D(x,y)
+        f2=distrib_2D(prop_x,y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                x=prop_x
+                compteur_x+=1
+                samples[0]+=[x]
+
+            else:
+                samples[0]+=[x+(np.random.rand())*10**(-10)]
+
+        else:
+            f=f2
+            x=prop_x
+            compteur_x+=1
+            samples[0]+=[x]
+
+            
+        #MH pour y
+        prop_y=y+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+        f=distrib_2D(x,y)
+        f2=distrib_2D(x,prop_y)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                y=prop_y
+                compteur_y+=1
+                samples[1]+=[y]
+            else:
+                samples[1]+=[y+(np.random.rand())*10**(-10)]
+        else:
+            f=f2
+            y=prop_y
+            compteur_y+=1
+            samples[1]+=[y]
+        
+    pourcentage_x=(compteur_x/N)*100
+    pourcentage_y=(compteur_y/N)*100
+    pourcentage=(pourcentage_x+pourcentage_y)/2   
+    return pourcentage
+
+def pourcentage_acceptation_MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
+#    start = time.time()
+    
+    #    N=2*N #multiplier N par 2 pour avoir le meme N nombre de propositions que MH normal
+    p=pi_invariant_2D()
+    x=p[0]
+    y=p[1]
+    samples=[[x],[y]]
+        
+    f=distrib_2D(x,y)
+
+    
+    compteur_x=0
+    compteur_y=0
+    
+#    print('poids en (0,0)')
+#    print(quad(distrib_2D,-np.inf,np.inf,args=(0,))[0])
+#    print(quad(distrib_2D_2,-np.inf,np.inf,args=(0,))[0])
+     
+    #integrale selon x, y fixe
+    int1=quad(distrib_2D,-np.inf,np.inf,args=(y,))[0]
+
+    #integrale selon y, x fixe
+    int2=quad(distrib_2D_2,-np.inf,np.inf,args=(x,))[0] 
+    
+    #rapport des integrales :
+    rap_int=int1/(int1+int2)   
+    
+    for i in range(N-1):
+    
+        rand=np.random.rand()
+        
+        if (rap_int>rand): #on modifie alors x
+        
+            #MH pour x
+            prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
+
+            f=distrib_2D(x,y)
+            f2=distrib_2D(prop_x,y)
+            
+            #meme integrale selon x            
+            int1_bis=int1
+            #nouvelle integrale selon y
+            int2_bis=quad(distrib_2D_2,-np.inf,np.inf,args=(prop_x,))[0]
+                                    
+            rap_int_bis=(int1_bis/(int1_bis+int2_bis))
+
+            if ((f*rap_int)>(f2*rap_int_bis)):
+                u=np.random.rand()
+                if u<((f2*rap_int_bis)/(f*rap_int)):
+                    f=f2
+                    x=prop_x
+                    rap_int=rap_int_bis
+                    compteur_x+=1
+                    samples[0]+=[x]
+
+                else:
+                    samples[0]+=[x+(np.random.rand())*10**(-10)]
+            else:
+                f=f2
+                x=prop_x
+                rap_int=rap_int_bis
+                compteur_x+=1
+                samples[0]+=[x]
+                
+            int2=int2_bis
+            rap_int=int1/(int1+int2)
+            
+            samples[1]+=[y+(np.random.rand())*10**(-10)]
+
+
+                
+        else : #on modifie alors y
+            
+            #MH pour y
+            rand=np.random.standard_t(k)
+            if ((rand<20) and (rand>-20)):
+                prop_y=y+poids*rand #proposition avec loi de student de parametre k
+            else:
+                prop_y=y+poids*10*np.random.normal(0,1)
+                
+            f=distrib_2D(x,y)
+            f2=distrib_2D(x,prop_y)
+            
+            #meme integrale selon y
+            int2_bis=int2     
+            #nouvelle integrale selon x
+            int1_bis=quad(distrib_2D,-np.inf,np.inf,args=(prop_y,))[0]       
+            
+            rap_int_bis=(int1_bis/(int1_bis+int2_bis))
+
+            if ((f*rap_int)>(f2*rap_int_bis)):
+                u=np.random.rand()
+                if u<((f2*rap_int_bis)/(f*rap_int)):
+                    f=f2
+                    y=prop_y
+                    compteur_y+=1
+                    samples[1]+=[y]
+
+                else:
+                    samples[1]+=[y+(np.random.rand())*10**(-10)]
+
+            else:
+                f=f2
+                y=prop_y
+                rap_int=rap_int_bis
+                compteur_y+=1
+                samples[1]+=[y]
+
+            int1=int1_bis
+            rap_int=int1/(int1+int2)
+            
+            samples[0]+=[x+(np.random.rand())*10**(-10)]
+                
+    pourcentage_x=(compteur_x/N)*100
+    pourcentage_y=(compteur_y/N)*100
+    pourcentage=(pourcentage_x+pourcentage_y)
+    print('pourcentage_x')
+    print(pourcentage_x)
+    print('pourcentage_y')
+    print(pourcentage_y)
+    return pourcentage
+
+#def graphe_pourcentage_acceptation_N_2D(k,nbN,Nf,Nl):
+#    tabN=[] #N en abscisse
+#    tabAcceptation=[] #variance en ordonnee
+#    tabAcceptationLI=[]
+#    for j in range(nbN):
+#        N=int(Nf+((Nl-Nf)/nbN)*j)
+#        print(N)
+#        tabN+=[N]
+##        print(tabN)
+#        tabAcceptation+=[pourcentage_acceptation_MH_2D_inv(N,k)]
+#        tabAcceptationLI+=[pourcentage_acceptation_MH_LI_2D_inv(N,k)]
+#    plt.figure()
+#    plt.plot(tabN,tabAcceptation,label='pourcentage acceptation MH', color="orange")
+#    plt.plot(tabN,tabAcceptationLI,label='pourcentage acceptation MH LI', color="b")
+#    plt.grid()
+#    plt.legend()
+#    plt.title('''Pourcentage d'acceptation en fonction de N, k={}'''.format(k))
+#    plt.show()
+#    plt.close()
+#    return (tabAcceptation,tabAcceptationLI)
+    
+def test(N,k):
+    TAB=[]
+    compt=0
+    for i in range(N):
+        student=np.random.standard_t(k)
+        TAB+=[student]
+    for j in range(N):
+        if ((TAB[j])>9):
+            compt+=1
+    return (compt/N)
     
 
 '''[A FAIRE]
