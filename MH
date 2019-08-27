@@ -725,24 +725,45 @@ def graphe_ESJD_k(N,nb,nbk,kf,kl):
     plt.close()
     return tabESJD
 
+def compteur_MH(N,k): #renvoie un tableau des abscisses x des points acceptes par Metropolis-Hastings
+    x=x0_invariant()
+    f=distrib(x)
 
-'''A FAIRE
+    samples=[x]
+    compteur=0
+    for i in range(N-1):
+        prop=x+poids*np.random.standard_t(k) #Proposition avec loi de student de parametre k
+        f=distrib(x)
+        f2=distrib(prop)
+        if (f>f2):
+            u=np.random.rand()
+            if u<(f2/f):
+                f=f2
+                x=prop
+                compteur+=1
+        else:
+            f=f2
+            x=prop
+            compteur+=1
+        samples.append(x)
+    return(compteur/N)
+    
+def graphe_compteur_k(N,nbk,kf,kl):
+    tabk=[] #k en abscisse
+    tabCompteur=[] #variance en ordonnee
+    
+    for j in range(nbk):
+        k=int(kf+((kl-kf)/nbk)*j)
+        print(k)
+        tabk+=[k]
+        print(tabk)
+        tabCompteur+=[compteur_MH(N,k)]
+    plt.figure()
+    plt.plot(tabk,tabCompteur)
+    plt.grid()
+    plt.title('Graphe : Acceptation en pourcentage en fonction de k')
+    plt.savefig('graphe_compteur_k.png',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    return tabCompteur
 
-1. [DONE] Tester kde avec seulement une gaussienne banale pour voir à quelle N (ou T) on a erreur < 0.01 par ex
-2. [DONE] Pour le rapport : mettre courbes en pointilles
-3. [DONE] Faire nouveau graphe : erreur en fonction de N à k fixé
-4. [DONE] VARIANCE ASYMPTOTIQUE
-5. [DONE] FAIRE EN SORTE DE POUVOIR PLOTER LES COURBES MEME QUAND JE NE LE FAIS PAS POUR L'INSTANT (ex : quand je calcule une erreur : ploter le graphe associé)
-
-6. Remplacer student par gaussienne pour faire k<1
-7. peut etre rapprocher gaussiennes dans distrib
-8. Ploter histogramme et kde en même temps pour voir si kde bon ou non
-
-A FAIRE 2
-1. kde à remplacer par mixture of gaussian estimator
-=> j'aurai ainsi besoin de moins de nb car l'erreur va etre bien plus faible
-2. ESJD et variance : ajouter f indicatrice de x>12 par exemple : dans une queue de distribution pour voir
-si le graphe de la variance va dans l'autre sens
-3. ESJD et variance : rajouter compteur pour voir le pourcentage de propositions qui ont été
-acceptés/rejetés dans MH
-'''
