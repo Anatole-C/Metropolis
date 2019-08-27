@@ -299,22 +299,15 @@ def MH3_2D_inv(N,k,nb): #donne les nb coordonnes (x,y) des points numeros N-1
 '3.3 Algorithme de Metropolis-Hastings LOCALLY INFORMED : MH_LI'
 
 def MH_LI_2D(N,k,x0,y0):#renvoie un tableau des coordonnees des points acceptes par Metropolis-Hastings
-#    start = time.time()
-    
 #    N=2*N #multiplier N par 2 pour avoir le meme N nombre de propositions que MH normal
 
     x=x0 #x de depart
     y=y0 #y de depart
-    samples=[[x0],[y0]]
-        
+    samples=[[x0],[y0]]      
     f=distrib_2D(x,y)
     
     compteur_x=0
     compteur_y=0
-    
-#    print('poids en (0,0)')
-#    print(quad(distrib_2D,-np.inf,np.inf,args=(0,))[0])
-#    print(quad(distrib_2D_2,-np.inf,np.inf,args=(0,))[0])
      
     #integrale selon x, y fixe
     int1=quad(distrib_2D,-np.inf,np.inf,args=(y,))[0]
@@ -410,23 +403,12 @@ def MH_LI_2D(N,k,x0,y0):#renvoie un tableau des coordonnees des points acceptes 
             samples[0]+=[x+(np.random.rand())*10**(-10)]
             int1=int1_bis
             rap_int=int1/(int1+int2)
-
-#verifier si on a deux fois le meme point :      
-#    compteur=0
-#    for i in range(len(samples[0])-1):
-#        if (samples[0][i]==samples[0][i+1]):
-#            compteur+=1
-#    print('compteur')
-#    print(compteur)
                 
     pourcentage_x=(compteur_x/N)*100
     pourcentage_y=(compteur_y/N)*100
     pourcentage=(pourcentage_x+pourcentage_y)
     print(pourcentage) 
-                
-#    end = time.time()
-#    print('execution time :')
-#    print(end - start)
+
     return samples
 
 
@@ -930,7 +912,7 @@ def graphe_variance_LI_N_2D(k,nb,nbN,Nf,Nl):
         print(N)
         tabN+=[N]
         print(tabN)
-        tabVariance+=[variance_LI_2D(N,k,nb)]
+        tabVariance+=[variance_LI_2D(2*N,k,nb)]
     plt.figure()
     plt.plot(tabN,tabVariance)
     plt.grid()
@@ -1137,10 +1119,14 @@ def pourcentage_acceptation_MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnee
     samples=[[x],[y]]
         
     f=distrib_2D(x,y)
-
     
+    x_choisi=0
+    y_choisi=0
+
+
     compteur_x=0
     compteur_y=0
+    
     
 #    print('poids en (0,0)')
 #    print(quad(distrib_2D,-np.inf,np.inf,args=(0,))[0])
@@ -1160,6 +1146,7 @@ def pourcentage_acceptation_MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnee
         rand=np.random.rand()
         
         if (rap_int>rand): #on modifie alors x
+            x_choisi+=1
         
             #MH pour x
             prop_x=x+poids*np.random.standard_t(k) #proposition avec loi de student de parametre k
@@ -1201,6 +1188,8 @@ def pourcentage_acceptation_MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnee
                 
         else : #on modifie alors y
             
+            y_choisi+=1
+            
             #MH pour y
             rand=np.random.standard_t(k)
             if ((rand<20) and (rand>-20)):
@@ -1241,13 +1230,30 @@ def pourcentage_acceptation_MH_LI_2D_inv(N,k):#renvoie un tableau des coordonnee
             
             samples[0]+=[x+(np.random.rand())*10**(-10)]
                 
+    
     pourcentage_x=(compteur_x/N)*100
     pourcentage_y=(compteur_y/N)*100
     pourcentage=(pourcentage_x+pourcentage_y)
+    
+    pourcentage_pondere=(((x_choisi)/N)*pourcentage_x)+(((y_choisi)/N)*pourcentage_y)
+
+    print('x_choisi')
+    print(x_choisi)
+    print('y_choisi')
+    print(y_choisi)
+    print('compteur_x')
+    print(compteur_x)
+    print('compteur_y')
+    print(compteur_y)
+
+    
     print('pourcentage_x')
     print(pourcentage_x)
     print('pourcentage_y')
     print(pourcentage_y)
+    
+    print('pourcentage_pondere')
+    print(pourcentage_pondere)    
     return pourcentage
 
 #def graphe_pourcentage_acceptation_N_2D(k,nbN,Nf,Nl):
@@ -1278,34 +1284,7 @@ def test(N,k):
         student=np.random.standard_t(k)
         TAB+=[student]
     for j in range(N):
-        if ((TAB[j])>9):
+        if ((TAB[j]>7) and (TAB[j]<13)):
             compt+=1
     return (compt/N)
-    
 
-'''[A FAIRE]
-- MH_LI_2D : multiplier N par 2 ?
-- 4.1 et 4.2 peut etre a combiner en une seule fonction qui prend en entree une fonction,
-  idem pour MH2_2D et MH2_LI_2D
-- Verifier si mon integrale double est bonne
-- Idee : ecrire distrib_2D(tab) pour pouvoir ecrire distrib_2D(positions)
-- integrer entre -10 et 20 (plus rapide) ou entre -inf et inf (plus precis) ?
-- colorbar bug !!
-
-- rajouter valeur des variables aux graphes
-
-- GROS PROBLEME : les bosses de la kde sont plus elargies
-  que celles de la distribution de base !
-- Solution (?) : remplacer kde par histogrammes ?
-- PROBELEME : "The maximum number of subdivisions (50) has been achieved"
-  quand j'integre des fonctions non integrables : perte de temps !
-- Solution (?) : mettre nombre max de subdivision à 5 par exemple ?
-
-COULEURS DANS GRAPHE ERREUR !!!
-ET l'autre graphe : mettre les deux (MH et MH LI) sur meme graphe !!!
-ATTENTION erreur devrait etre inferieure à 1, meme environ 0.2
-
-[RAPPORT]
-- Mettre un compteur d'acceptation de proposition dans MH et MH LI
-pour voir si on a bien une acceptation LI > acceptation MH
-'''
